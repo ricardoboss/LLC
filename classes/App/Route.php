@@ -173,7 +173,7 @@ class Route {
 			$route = $routes[$uri];
 
 			// check if route is a Route object which can be processed or an alias for a route (string).
-			if (get_class($route) == Route::class) {
+			if (!is_string($route) && get_class($route) == Route::class) {
 				/** @noinspection PhpUndefinedMethodInspection */
 				$callback = $route->getCallback();
 
@@ -184,7 +184,7 @@ class Route {
 						$callback['arguments'] = array($_POST);
 				}
 			} else {
-				assert(is_string($route), "Invalid type for route: " . get_class($route));
+				assert(is_string($route), "Invalid type for route");
 
 				header("Location: " . $route);
 
@@ -278,7 +278,7 @@ class Route {
 				)
 			)
 				throw new RoutingException(
-					"Invalid controller string: method {$callback['method']} is not accessible!",
+					"Invalid controller string: method '{$callback['class']}::{$callback['method']}' is not callable!",
 					RoutingException::INVALID_CONTROLLER
 				);
 		} else

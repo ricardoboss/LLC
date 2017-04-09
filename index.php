@@ -14,7 +14,9 @@ try {
 		    '/index.php'
 		)
 	);
+
 	Route::post("/login", "SessionController@create");
+	Route::post("/register", "UserController@create");
 
 	Route::set404(function() {
 		Template::display("app.error");
