@@ -1,0 +1,4 @@
+RewriteEngine On
+RewriteCond %{FILENAME} -d
+RewriteCond %{FILENAME} -f
+RewriteRule .* /index.php [NC]
