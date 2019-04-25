@@ -4,35 +4,39 @@ namespace Exceptions;
 
 use Throwable;
 
-class ExceptionHandler {
-	/**
-	 * @param \Throwable $t
-	 */
-	public static function handle(Throwable $t) {
-		$message = $t->getMessage();
-		$code = " [" . $t->getCode() . "]";
+class ExceptionHandler
+{
+    /**
+     * @param  Throwable  $t
+     */
+    public static function handle(Throwable $t)
+    {
+        $message = $t->getMessage();
+        $code = " [".$t->getCode()."]";
 
-		if ($code == 0)
-			$code = "";
+        if ($code == 0) {
+            $code = "";
+        }
 
-		$file = $t->getFile();
-		$line = $t->getLine();
-		$trace = $t->getTraceAsString();
+        $file = $t->getFile();
+        $line = $t->getLine();
+        $trace = $t->getTraceAsString();
 
-		if (self::is_leveled($t)) {
-			/** @noinspection PhpUndefinedMethodInspection */
-			if ($t->getLevel() > LeveledException::LEVEL_INFO)
-				http_response_code(500);
+        if (self::is_leveled($t)) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            if ($t->getLevel() > LeveledException::LEVEL_INFO) {
+                http_response_code(500);
+            }
 
-			/** @noinspection PhpUndefinedMethodInspection */
-			$level = LeveledException::stringifyLevel($t->getLevel());
-		}
+            /** @noinspection PhpUndefinedMethodInspection */
+            $level = LeveledException::stringifyLevel($t->getLevel());
+        }
 
-		ob_start();
-		var_dump($t);
-		$dump = ob_get_clean();
+        ob_start();
+        var_dump($t);
+        $dump = ob_get_clean();
 
-		echo <<<HTML
+        echo <<<HTML
 <!DOCTYPE html>
 <html lang="en">
 	<head>
@@ -76,15 +80,16 @@ class ExceptionHandler {
 				</tr>
 HTML;
 
-		if (isset($level))
-			echo <<<HTML
+        if (isset($level)) {
+            echo <<<HTML
 	    		<tr>
 	    			<td>Level</td>
 	    			<td>$level</td>
 				</tr>
 HTML;
+        }
 
-		echo <<<HTML
+        echo <<<HTML
 				<tr>
 					<td>Trace</td>
 					<td><pre style="max-height: 200px; overflow: auto">$trace</pre></td>
@@ -103,12 +108,14 @@ HTML;
 </html>
 HTML;
 
-		/** @noinspection PhpUndefinedMethodInspection */
-		if (self::is_leveled($t) && $t->getLevel() > LeveledException::LEVEL_INFO)
-			die;
-	}
+        /** @noinspection PhpUndefinedMethodInspection */
+        if (self::is_leveled($t) && $t->getLevel() > LeveledException::LEVEL_INFO) {
+            die;
+        }
+    }
 
-	private static function is_leveled(Throwable $t) {
-		return get_class($t) == LeveledException::class;
-	}
+    private static function is_leveled(Throwable $t)
+    {
+        return get_class($t) == LeveledException::class;
+    }
 }

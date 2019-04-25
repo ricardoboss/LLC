@@ -4,129 +4,139 @@ namespace App;
 
 use Exceptions\LeveledException;
 
-class Template {
-	const CACHE_TIME = 1800;
-	//const CACHE_TIME = 0;
-	const CACHE_FOLDER = CACHE . "templates" . DIRECTORY_SEPARATOR;
-	const INCLUDE_PATTERN = /** @lang RegExp */
-		"/@include\(\"([^\"]+?)\"\)/";
-	const SECTION_PATTERN = /** @lang RegExp */
-		"/@section\(\"([^\"]+?)\"\)((?s).*?)@endSection/";
-	const PASTE_PATTERN = /** @lang RegExp */
-		"/@paste\(\"([^\"]+?)\"\)/";
-	private static $sections = array();
+class Template
+{
+    const CACHE_TIME = 1800;
+    //const CACHE_TIME = 0;
+    const CACHE_FOLDER = CACHE."templates".DIRECTORY_SEPARATOR;
+    const INCLUDE_PATTERN = /** @lang RegExp */
+        "/@include\(\"([^\"]+?)\"\)/i";
+    const SECTION_PATTERN = /** @lang RegExp */
+        "/@section\(\"([^\"]+?)\"\)((?s).*?)@endsection/i";
+    const PASTE_PATTERN = /** @lang RegExp */
+        "/@paste\(\"([^\"]+?)\"\)/i";
+    private static $sections = array();
 
-	/**
-	 * @param string $name The path to be resolved (e.g. 'app.master').
-	 *
-	 * @return string The path to the file.
-	 *
-	 * @throws \Exceptions\LeveledException If the template file cannot be found.
-	 */
-	private static function resolvePath(string $name): string {
-		$name = str_replace('.', DIRECTORY_SEPARATOR, $name);
-		$name .= ".template.php";
+    /**
+     * Prints a processed template file.
+     *
+     * @param  string  $name  The name of the template file.
+     *
+     * @throws LeveledException If the template file cannot be found.
+     */
+    public static function display(string $name)
+    {
+        print static::process($name);
+    }
 
-		$path = TEMPLATES . $name;
+    /**
+     * Process a template file.
+     *
+     * @param  string  $name  The name of the template file.
+     * @param  bool  $isCache  Whether or not the file is in cache only.
+     *
+     * @return string The processed template file.
+     *
+     * @throws LeveledException If the file cannot be found.
+     */
+    private static function process(string $name, $isCache = false): string
+    {
+        if (!file_exists(Template::CACHE_FOLDER) || !is_dir(Template::CACHE_FOLDER)) {
+            mkdir(Template::CACHE_FOLDER);
+        }
 
-		if (!file_exists($path))
-			throw new LeveledException("Template file does not exist: " . $name, LeveledException::LEVEL_WARNING);
+        $cacheFile = Template::CACHE_FOLDER.$name;
 
-		return $path;
-	}
+        if ($isCache || !file_exists($cacheFile) || filemtime($cacheFile) > Template::CACHE_TIME) {
+            if (!$isCache) {
+                $file = static::resolvePath($name);
+                $content = file_get_contents($file);
+            } else {
+                $content = file_get_contents($cacheFile);
+            }
 
-	/**
-	 * Process a template file.
-	 *
-	 * @param string $name  The name of the template file.
-	 * @param bool   $isCache Whether or not the file is in cache only.
-	 *
-	 * @return string The processed template file.
-	 *
-	 * @throws \Exceptions\LeveledException If the file cannot be found.
-	 */
-	private static function process(string $name, $isCache = false): string {
-		if (!file_exists(Template::CACHE_FOLDER) || !is_dir(Template::CACHE_FOLDER))
-			mkdir(Template::CACHE_FOLDER);
+            $matches = array();
 
-		$cacheFile = Template::CACHE_FOLDER . $name;
+            preg_match_all(Template::SECTION_PATTERN, $content, $matches);
+            if (count($matches[0]) > 0) {
+                for ($i = 0; $i < count($matches[0]); $i++) {
+                    $cacheName = "$name.{$matches[1][$i]}";
 
-		if ($isCache || !file_exists($cacheFile) || filemtime($cacheFile) > Template::CACHE_TIME) {
-			if (!$isCache) {
-				$file = static::resolvePath($name);
-				$content = file_get_contents($file);
-			} else {
-				$content = file_get_contents($cacheFile);
-			}
+                    file_put_contents(Template::CACHE_FOLDER.$cacheName, $matches[2][$i]);
 
-			$matches = array();
+                    static::$sections[$matches[1][$i]] = static::process($cacheName, true);
+                }
 
-			preg_match_all(Template::SECTION_PATTERN, $content, $matches);
-			if (count($matches[0]) > 0) {
-				for ($i = 0; $i < count($matches[0]); $i++) {
-					$cacheName = "$name.{$matches[1][$i]}";
+                $content = preg_replace(Template::SECTION_PATTERN, "", $content);
+            }
 
-					file_put_contents(Template::CACHE_FOLDER . $cacheName, $matches[2][$i]);
+            preg_match_all(Template::PASTE_PATTERN, $content, $matches);
+            if (count($matches[0]) > 0) {
+                foreach ($matches[1] as $section) {
+                    if (array_key_exists($section, static::$sections)) {
+                        $content = str_replace("@paste(\"$section\")", static::$sections[$section], $content);
+                    } else {
+                        $content = str_replace("@paste(\"$section\")", "", $content);
+                    }
+                    //throw new LeveledException("Section not defined: " . $section, LeveledException::LEVEL_ERROR);
+                }
+            }
 
-					static::$sections[$matches[1][$i]] = static::process($cacheName, true);
-				}
+            preg_match_all(Template::INCLUDE_PATTERN, $content, $matches);
+            if (count($matches[0]) > 0) {
+                foreach ($matches[1] as $include) {
+                    $content = str_replace("@include(\"$include\")", static::process($include), $content);
+                }
+            }
 
-				$content = preg_replace(Template::SECTION_PATTERN, "", $content);
-			}
+            $content = trim($content);
 
-			preg_match_all(Template::PASTE_PATTERN, $content, $matches);
-			if (count($matches[0]) > 0) {
-				foreach ($matches[1] as $section) {
-					if (array_key_exists($section, static::$sections))
-						$content = str_replace("@paste(\"$section\")", static::$sections[$section], $content);
-					else
-						$content = str_replace("@paste(\"$section\")", "", $content);
-						//throw new LeveledException("Section not defined: " . $section, LeveledException::LEVEL_ERROR);
-				}
-			}
+            $success = file_put_contents($cacheFile, $content);
 
-			preg_match_all(Template::INCLUDE_PATTERN, $content, $matches);
-			if (count($matches[0]) > 0)
-				foreach ($matches[1] as $include) {
-					$content = str_replace("@include(\"$include\")", static::process($include), $content);
-				}
+            if ($success === false) {
+                throw new LeveledException("Could not save compiled template in cache!", LeveledException::LEVEL_ERROR);
+            }
+        }
 
-			$content = trim($content);
+        return file_get_contents($cacheFile);
+    }
 
-			$success = file_put_contents($cacheFile, $content);
+    /**
+     * @param  string  $name  The path to be resolved (e.g. 'app.master').
+     *
+     * @return string The path to the file.
+     *
+     * @throws LeveledException If the template file cannot be found.
+     */
+    private static function resolvePath(string $name): string
+    {
+        $name = str_replace('.', DIRECTORY_SEPARATOR, $name);
+        $name .= ".template.php";
 
-			if ($success === false)
-				throw new LeveledException("Could not save compiled template in cache!", LeveledException::LEVEL_ERROR);
-		}
+        $path = TEMPLATES.$name;
 
-		return file_get_contents($cacheFile);
-	}
+        if (!file_exists($path)) {
+            throw new LeveledException("Template file does not exist: ".$name, LeveledException::LEVEL_WARNING);
+        }
 
-	/**
-	 * Prints a processed template file.
-	 *
-	 * @param string $name The name of the template file.
-	 *
-	 * @throws \Exceptions\LeveledException If the template file cannot be found.
-	 */
-	public static function display(string $name) {
-		print static::process($name);
-	}
+        return $path;
+    }
 
-	/**
-	 * Tests whether or not a template file exists.
-	 *
-	 * @param string $name The name of the template file.
-	 *
-	 * @return bool True if the template exists, false otherwise.
-	 */
-	public static function exists(string $name): bool {
-		try {
-			static::resolvePath($name);
+    /**
+     * Tests whether or not a template file exists.
+     *
+     * @param  string  $name  The name of the template file.
+     *
+     * @return bool True if the template exists, false otherwise.
+     */
+    public static function exists(string $name): bool
+    {
+        try {
+            static::resolvePath($name);
 
-			return true;
-		} catch (LeveledException $e) {
-			return false;
-		}
-	}
+            return true;
+        } catch (LeveledException $e) {
+            return false;
+        }
+    }
 }

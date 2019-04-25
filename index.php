@@ -1,4 +1,5 @@
 <?php
+
 use App\Route;
 use App\Template;
 use Exceptions\ExceptionHandler;
@@ -6,24 +7,25 @@ use Exceptions\ExceptionHandler;
 include("classes/load.php");
 
 try {
-	Route::get(
-		"/home",
-		"home",
-		array(
-			'/',
-		    '/index.php'
-		)
-	);
+    Route::get(
+        "/home",
+        "home",
+        array(
+            '/',
+            '/index.php'
+        )
+    );
+    Route::get('/test', 'test');
 
-	Route::post("/login", "SessionController@create");
-	Route::post("/register", "UserController@create");
+    Route::post("/login", "SessionController@create");
+    Route::post("/register", "UserController@create");
 
-	Route::set404(function() {
-		Template::display("app.error");
-		//Route::redirect("/home");
-	});
+    Route::set404(function () {
+        Template::display("app.error");
+        //Route::redirect("/home");
+    });
 
-	Route::handle();
+    Route::handle();
 } catch (Throwable $e) {
-	ExceptionHandler::handle($e);
+    ExceptionHandler::handle($e);
 }
