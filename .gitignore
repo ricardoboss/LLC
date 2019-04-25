@@ -1,0 +1,11 @@
+# project files
+.idea/
+!.idea/*.iml
+!.idea/modules.xml
+!.idea/php.xml
+!.idea/vcs.xml
+!.idea/jsLibraryMappings.xml
+!.idea/webResources.xml
+
+# cache
+cache/
